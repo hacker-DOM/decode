@@ -6,14 +6,15 @@ const Web3 = require('web3')
 
 // web3.setProvider(new web3.providers.HttpProvider('http://geth-node-ip:8545'));
 
-let web3
+let web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:9545'))
 
-if (typeof web3 !== 'undefined') {
-  web3 = new Web3(web3.currentProvider);
-} else {
-  // set the provider you want from Web3.providers
-  web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:9545"));
+try {
+	web3.eth.blockNumber
+} catch (e) {
+	web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 }
+
+console.log('Listening on ', web3.currentProvider.host)
 
 // here we use path relative to cwd
 const abiFolder = 'build/contracts'
@@ -134,7 +135,6 @@ for (let i = 0; i <= latestBlock; i++) {
 			input2 += ')'
 		}
 
-		console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
 		console.log('Tx in Block #' + tx.blockNumber)
 		console.log('Transaction being sent from:', from);
 		console.log('To:', to)
