@@ -1,7 +1,7 @@
 {
   "name": "decode-eth",
-  "version": "0.0.2",
-  "description": "",
+  "version": "0.0.3",
+  "description": "Decode is a package to make it easier for you to develop on Ethereum. In particular, it parses tx's submitted to a local testrpc node to make them more readable.",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
