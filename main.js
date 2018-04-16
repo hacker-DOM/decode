@@ -1,20 +1,8 @@
 const abiDecoder = require('abi-decoder')
 const fs = require('fs')
-const Web3 = require('web3') 
+const Web3 = require('web3')
 
-// const web3 = new Web3(Web3.givenProvider || "ws://localhost:9545");
-
-// web3.setProvider(new web3.providers.HttpProvider('http://geth-node-ip:8545'));
-
-let web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:9545'))
-
-try {
-	web3.eth.blockNumber
-} catch (e) {
-	web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
-}
-
-console.log('Listening on ', web3.currentProvider.host)
+let web3 = new Web3('http://localhost:8545')
 
 // here we use path relative to cwd
 const abiFolder = 'build/contracts'
@@ -34,10 +22,96 @@ fs.readdirSync(abiFolder).forEach((fileName, index) => {
 
 abis.forEach(abi => abiDecoder.addABI(abi))
 
-const latestBlock = web3.eth.blockNumber
+asyncFn()
 
-const format = a => {
-	const inAcc = web3.eth.accounts.indexOf(a)
+async function asyncFn() {
+	let latestBlock
+	try {
+		latestBlock = await web3.eth.getBlockNumber()
+
+		if (! latestBlock) {
+			web3 = new Web3('http://localhost:9545')
+			latestBlock = await web3.eth.getBlockNumber()
+		}
+	} catch (e) {
+		web3 = new Web3('http://localhost:9545')
+		latestBlock = await web3.eth.getBlockNumber()
+	}
+
+	console.log('Listening on ', web3.currentProvider.host)
+
+	if (latestBlock === 0 || typeof latestBlock !== 'number') {
+		console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+		console.log('There are no transactions to show');
+		console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+		return;
+	}
+
+	for (let i = 0; i <= latestBlock; i++) {
+		const block = await web3.eth.getBlock(i)
+		const txs = block.transactions
+		for (let j = 0; j < txs.length; j++) {
+			const tx = await web3.eth.getTransaction(txs[j])
+			const txReceipt = await web3.eth.getTransactionReceipt(txs[j])
+
+			const from = await format(tx.from)
+			let to
+			let input2
+			const logs = abiDecoder.decodeLogs(txReceipt.logs)
+
+			if (tx.to == null) {
+				to = '0x0 (most likely contract created)'
+				input2 = getContractCreated(txReceipt.contractAddress, tx.input)
+			} else {
+				to = await format(tx.to)
+				const input = abiDecoder.decodeMethod(tx.input)
+				if (!input) {
+					input2 = ''
+				} else {
+					input2 = input.name + '('
+					input.params.forEach(async (param, index) => {
+						input2 += await format(param.value)
+						if (index != input.params.length - 1) {
+							input2 += ', '
+						}
+					})
+					input2 += ')'
+				}
+			}
+
+			console.log('Tx in Block #' + tx.blockNumber)
+			console.log('Transaction being sent from:', from);
+			console.log('To:', to)
+			console.log('Input:', input2)
+			console.log('Events:',)
+			await printLogs(logs)
+			console.log('Value (i.e. ETH sent):', tx.value)
+			console.log('Gas used:', Math.floor(txReceipt.gasUsed / 1000) + 'k')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+
+		}
+	}
+}
+
+async function printLogs(logs) {
+	for (let i = 0; i < logs.length; i++) {
+		const log = logs[i]
+		console.log(`${log.name}:`)
+		for (let j = 0; j < log.events.length; j++) {
+			const param = log.events[j]
+			console.log(await format(param.value))
+		}
+		console.log('------',)
+	}
+}
+
+async function format(a) {
+	const acc = (await web3.eth.getAccounts()).map(x => x.toLowerCase())
+
+	if (typeof a === 'string') {
+		a = a.toLowerCase()
+	}
+	const inAcc = acc.indexOf(a)
 
 	if (inAcc > -1) {
 		// a is an account
@@ -70,7 +144,7 @@ const format = a => {
 	}
 }
 
-const isInUpToLibraries = (bytecode, input) => {
+function isInUpToLibraries(bytecode, input) {
 	let index
 	for (let i = 0; i < bytecode.length; i++) {
 		if (bytecode[i] !== input[i]) {
@@ -83,7 +157,7 @@ const isInUpToLibraries = (bytecode, input) => {
 		else return false
 }
 
-const getContractCreated = (address, input) => {
+function getContractCreated(address, input) {
 	let index
 	for (let i = 0; i < bytecodes.length; i++) {
 		if (isInUpToLibraries(bytecodes[i], input)) {
@@ -93,61 +167,10 @@ const getContractCreated = (address, input) => {
 	}
 
 	if (addresses[index]) {
-		addresses[index].push(address)
+		addresses[index].push(address.toLowerCase())
 	} else {
-		addresses[index] = [address]
+		addresses[index] = [address.toLowerCase()]
 	}
 
 	return names[index]
-}
-
-if (latestBlock === 0) {
-	console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-	console.log('There are no transactions to show');
-	console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-}
-
-for (let i = 0; i <= latestBlock; i++) {
-	const block = web3.eth.getBlock(i)
-	const txs = block.transactions
-	for (let j = 0; j < txs.length; j++) {
-		const tx = web3.eth.getTransaction(txs[j])
-		const txReceipt = web3.eth.getTransactionReceipt(txs[j])
-
-		const from = format(tx.from)
-		let to
-		let input2
-		const logs = abiDecoder.decodeLogs(txReceipt.logs)
-
-		if (tx.to == '0x0') {
-			to = '0x0 (most likely contract created)'
-			input2 = getContractCreated(txReceipt.contractAddress, tx.input)
-		} else {
-			to = format(tx.to)
-			const input = abiDecoder.decodeMethod(tx.input)
-			input2 = input.name + '('
-			input.params.forEach((param, index) => {
-				input2 += format(param.value)
-				if (index != input.params.length - 1) {
-					input2 += ', '
-				}
-			})
-			input2 += ')'
-		}
-
-		console.log('Tx in Block #' + tx.blockNumber)
-		console.log('Transaction being sent from:', from);
-		console.log('To:', to)
-		console.log('Input:', input2)
-		console.log('Events:',)
-		logs.forEach(log => {
-			console.log(`${log.name}:`)
-			log.events.forEach(param => console.log('',format(param.value)))
-			console.log('------',)
-		})
-		console.log('Value (i.e. ETH sent):', tx.value.toNumber())
-		console.log('Gas used:', Math.floor(txReceipt.gasUsed / 1000) + 'k')
-		console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-
-	}
 }
