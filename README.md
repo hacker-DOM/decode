@@ -8,7 +8,7 @@ Use
 
 `npm install --save-dev decode-eth`
 
-add this script to your `package.json`: "decode": "node ./node_modules/decode-eth/main.js"
+add this script to your `package.json`: `"decode": "node ./node_modules/decode-eth/main.js"`
 
 run using `npm run decode`!
 
