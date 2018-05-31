@@ -80,7 +80,10 @@ async function asyncFn() {
 			}
 
 			console.log('Tx in Block #' + tx.blockNumber)
-			console.log('Transaction being sent from:', from);
+			// console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+			// console.log('tx',tx);
+			// console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
+			console.log('Transaction being sent from:', from)
 			console.log('To:', to)
 			console.log('Input:', input2)
 			console.log('Events:',)
@@ -91,11 +94,21 @@ async function asyncFn() {
 
 		}
 	}
+
+	// Print all contracts
+
+	const l = Math.max(names.length, addresses.length)
+
+	for (let i = 0; i < l; i++) {
+		const add = addresses[i] ? addresses[i] : 'not deployed' 
+		console.log(names[i], add)
+	}
 }
 
 async function printLogs(logs) {
 	for (let i = 0; i < logs.length; i++) {
 		const log = logs[i]
+		if (!log) continue
 		console.log(`${log.name}:`)
 		for (let j = 0; j < log.events.length; j++) {
 			const param = log.events[j]
@@ -153,7 +166,7 @@ function isInUpToLibraries(bytecode, input) {
 		}
 	}
 
-	if (!index || bytecode[index] === '_') return true
+	if ((!index || bytecode[index] === '_') && bytecode.length > 2) return true
 		else return false
 }
 
