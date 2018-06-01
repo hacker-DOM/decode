@@ -69,20 +69,18 @@ async function asyncFn() {
 					input2 = ''
 				} else {
 					input2 = input.name + '('
-					input.params.forEach(async (param, index) => {
-						input2 += await format(param.value)
-						if (index != input.params.length - 1) {
+					let params = input.params
+					for (let k = 0; k < params.length; k++) {
+						input2 += await format(params[k].value)
+						if (k != params.length - 1) {
 							input2 += ', '
 						}
-					})
+					}
 					input2 += ')'
 				}
 			}
 
 			console.log('Tx in Block #' + tx.blockNumber)
-			// console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
-			// console.log('tx',tx);
-			// console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~');
 			console.log('Transaction being sent from:', from)
 			console.log('To:', to)
 			console.log('Input:', input2)
